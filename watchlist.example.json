@@ -1,0 +1,12 @@
+{
+  "thresholds": {
+    "day_pct": 10,
+    "week_pct": 20,
+    "month_pct": 30
+  },
+  "tickers": {
+    "AAPL":      { "label": "Apple", "buy_price": 250, "target_price": 360 },
+    "VOLV-B.ST": { "label": "Volvo B", "week_pct": 8 },
+    "BTC-USD":   { "label": "Bitcoin" }
+  }
+}
