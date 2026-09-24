@@ -127,8 +127,13 @@ def check(config, state, force=False):
 
 
 def main():
+    sys.stdout.reconfigure(line_buffering=True)  # show logs immediately in containers
     load_env()
     args = sys.argv[1:]
+
+    if "-h" in args or "--help" in args:
+        print(__doc__)
+        return
 
     if "--chat-id" in args:
         for u in telegram("getUpdates")["result"]:

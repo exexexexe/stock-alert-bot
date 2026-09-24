@@ -15,76 +15,128 @@ Month: 🟢 +21.4%
 vs your buy price (250.00): 🟢 +34.8%
 ```
 
-The same alert doesn't fire again right away. A day alert can repeat after 1 day, a week alert after 7 and a month alert after 30. A target alert re-arms once the price drops back below the target.
+Prices come from Yahoo Finance, so it works with most stocks, ETFs and crypto worldwide. No API key or paid data needed.
 
-Prices come from Yahoo Finance, so it works with most stocks, ETFs and crypto worldwide. No API key needed.
+---
 
-## 1. Create your Telegram bot
+## Quick start (about 5 minutes, no coding)
 
-1. In Telegram, message **@BotFather**, send `/newbot` and copy the token.
-2. Open your new bot and press **Start**. The bot can't message you until you've messaged it first.
+You need a Telegram account, a GitHub account and a [Railway](https://railway.com) account. Railway runs the bot 24/7 and costs cents to a few dollars a month.
 
-## 2. Run it locally
+### Step 1: Make your Telegram bot (1 min)
 
-```bash
-git clone https://github.com/<you>/stock-alert-bot.git
-cd stock-alert-bot
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+1. In Telegram, search for **@BotFather** and send `/newbot`.
+2. Pick a name and a username ending in `bot`. BotFather replies with a **token** like `123456:ABC-xyz...`. Copy it.
+3. Open your new bot and press **Start**. It can't message you until you do this.
 
-cp .env.example .env                        # paste your bot token
-.venv/bin/python stock_alert.py --chat-id   # prints your chat id → put it in .env
+### Step 2: Get your chat ID (30 sec)
 
-cp watchlist.example.json watchlist.json    # add your own tickers
-.venv/bin/python stock_alert.py --status    # sends the current numbers to Telegram
-.venv/bin/python stock_alert.py             # runs forever, checking every 30 min
+Open this in your browser, with your token pasted in:
+
+```
+https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates
 ```
 
-## 3. Configure your watchlist
+Look for `"chat":{"id":123456789`. That number is your **chat ID**.
+If you see `"result":[]`, send your bot a message and refresh the page.
+
+### Step 3: Write your watchlist (2 min)
+
+List the stocks you want to watch, using their [Yahoo Finance](https://finance.yahoo.com) symbols:
 
 ```json
 {
   "thresholds": { "day_pct": 10, "week_pct": 20, "month_pct": 30 },
   "tickers": {
-    "AAPL":      { "label": "Apple", "buy_price": 250, "target_price": 360 },
-    "VOLV-B.ST": { "label": "Volvo B", "week_pct": 8 },
+    "AAPL":      { "label": "Apple", "buy_price": 250 },
+    "VOLV-B.ST": { "label": "Volvo B", "target_price": 350 },
     "BTC-USD":   { "label": "Bitcoin" }
   }
 }
 ```
 
-| Field | Meaning |
+See [watchlist options](#watchlist-options) below for everything you can set.
+
+### Step 4: Deploy on Railway (1 min)
+
+1. **Fork** this repo (top-right button on GitHub).
+2. On Railway, click **New Project**, choose **Deploy from GitHub repo** and pick your fork.
+3. Open the service, go to **Variables** and add:
+
+| Variable | Value |
 |---|---|
-| `thresholds` | Default % rise that triggers an alert, for all tickers |
-| `day_pct` / `week_pct` / `month_pct` | Per-ticker override of the threshold |
-| `buy_price` | Optional. Adds a "vs your buy price" line |
-| `target_price` | Optional. Alerts once when the price reaches it |
-| `label` | Optional. A readable name shown next to the ticker |
+| `TELEGRAM_BOT_TOKEN` | your token from step 1 |
+| `TELEGRAM_CHAT_ID` | your chat ID from step 2 |
+| `WATCHLIST_JSON` | your whole watchlist from step 3, pasted as-is |
 
-**Tickers use Yahoo Finance symbols.** Search [finance.yahoo.com](https://finance.yahoo.com) if you're unsure.
-Examples: Stockholm `VOLV-B.ST`, Toronto `SHOP.TO`, Oslo `EQNR.OL`, London `VOD.L`, crypto `BTC-USD`.
-Most mutual funds aren't on Yahoo.
+That's it. Railway builds and starts the bot. Open the **Deployments** tab and check the logs: you should see one line per ticker, like `[AAPL] 337.02 d-0.8% w+1.4% m+8.6%`.
 
-"Week" means 5 trading days and "month" means 21 trading days.
+**Recommended:** attach a **Volume** mounted at `/data` and add the variable `STATE_FILE=/data/state.json`. Otherwise the bot forgets which alerts it already sent each time it redeploys, and may send one again.
 
-## 4. Host it 24/7 on Railway
+Your holdings stay private. They live in Railway variables, not in your fork.
 
-Running it on your laptop only works while the laptop is awake. To keep it always on:
+---
 
-1. Fork this repo.
-2. On [railway.com](https://railway.com), create a new project and choose **Deploy from GitHub repo**, then pick your fork.
-3. Under **Variables**, add:
-   - `TELEGRAM_BOT_TOKEN`: your bot token
-   - `TELEGRAM_CHAT_ID`: your chat id
-   - `WATCHLIST_JSON`: your whole watchlist JSON pasted as the value. This keeps your holdings out of the public repo.
-   - `CHECK_MINUTES`: optional, defaults to 30
+## Watchlist options
 
-`railway.json` already sets the start command. The bot uses very little CPU and memory, so it costs cents to a few dollars a month.
+| Field | Where | Meaning |
+|---|---|---|
+| `day_pct` / `week_pct` / `month_pct` | `thresholds` | Default % rise that triggers an alert, for all tickers |
+| `day_pct` / `week_pct` / `month_pct` | per ticker | Override the threshold for that ticker only |
+| `buy_price` | per ticker | Adds a "vs your buy price" line |
+| `target_price` | per ticker | Alerts once when the price reaches it |
+| `label` | per ticker | A readable name shown next to the ticker |
 
-Optional: to stop repeat alerts from coming back after a redeploy, attach a volume mounted at `/data` and set `STATE_FILE=/data/state.json`.
+Every field is optional except the ticker itself. `"TSLA": {}` works fine.
 
-## Privacy
+**Finding ticker symbols:** search the company on [finance.yahoo.com](https://finance.yahoo.com) and use the symbol shown there.
 
-`.env`, `watchlist.json` and `state.json` are gitignored. Never commit your bot token. Anyone who has it can control your bot.
+| Market | Example |
+|---|---|
+| US | `AAPL`, `GME` |
+| Stockholm | `VOLV-B.ST` |
+| Oslo | `EQNR.OL` |
+| Toronto | `SHOP.TO` |
+| London | `VOD.L` |
+| Crypto | `BTC-USD`, `XRP-USD` |
+
+Most mutual funds and some ETPs aren't on Yahoo. If one doesn't work, try following its underlying asset instead, for example `XRP-USD` for an XRP ETP.
+
+**How alerts avoid spamming you:** each alert type has a waiting period before it can fire again for the same ticker. A day alert waits 1 day, a week alert 7 days and a month alert 30 days. A target alert fires once, then re-arms after the price drops back below the target. "Week" means 5 trading days and "month" means 21 trading days.
+
+---
+
+## Run it on your own computer instead
+
+This works only while your computer is on and awake. It's handy for testing.
+
+```bash
+git clone https://github.com/exexexexe/stock-alert-bot.git
+cd stock-alert-bot
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+cp .env.example .env                        # paste your token and chat ID
+cp watchlist.example.json watchlist.json    # add your tickers
+
+.venv/bin/python stock_alert.py --chat-id   # prints your chat ID (message the bot first)
+.venv/bin/python stock_alert.py --status    # sends current numbers for every ticker now
+.venv/bin/python stock_alert.py             # runs forever, checking every 30 min
+.venv/bin/python stock_alert.py --once      # one check, for cron/launchd
+```
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `400 Bad Request: chat not found` | You haven't pressed **Start** on your bot, or the chat ID is wrong. Message the bot, then repeat step 2. |
+| `401 Unauthorized` | The bot token is wrong or has extra spaces. Copy it from BotFather again. |
+| `[TICKER] fetch failed` | Yahoo doesn't know that symbol. Check it on finance.yahoo.com. |
+| Railway logs are empty | Check the **Build Logs** tab for install errors. |
+| No alerts at all | Probably nothing has risen past your thresholds yet. Temporarily set `"day_pct": 0` to test. |
+
+Never commit your bot token or share it. Anyone who has it can control your bot. `.env`, `watchlist.json` and `state.json` are already gitignored.
 
 ## License
 
